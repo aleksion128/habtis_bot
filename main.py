@@ -5,18 +5,50 @@ from aiogram.filters import CommandStart
 from aiogram.types import Message, CallbackQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 import collections
-from datetime import datetime
+import datetime
 
 TOKEN = "YOUR_BOT_TOKEN_HERE"
 
-bot = Bot(token=TOKEN)
+# bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
 db = []
 
+class Habit:
+    _start_date: datetime.date
+    _text: str
+    _status: bool
+
+    def __init__(self, description: str):
+        self._start_date = datetime.date.today()
+        self._text = description
+        self._status = True
+
+    def set_status(self, status):
+        if (not(status) and self._status) or (status and not(self._status)): # если привыку бросили ИЛИ возобновили - отсчитываем время с сегодня
+            self._start_date = datetime.date.today()
+        self._status = status
+    
+    def get_status(self):
+        return self._status
+
+    def __str__(self):
+        today = datetime.date.today()
+        postfix = "дней"
+        delta_days = (today - self._start_date).days
+        if delta_days % 10 == 1:
+            postfix = "день"
+        elif delta_days % 10 in [2, 3, 4]:
+            postfix = "дня"
+        return self._text + f" - уже {delta_days} " + postfix
+
 class UserHabits:
     __user_id: str
     _habits: list[Habit]
+
+    def __init__(self, user_id: str):
+        self.__user_id = user_id
+        self._habits = []
 
     def get_user(self) -> str:
         return self.__user_id
@@ -25,14 +57,20 @@ class UserHabits:
         self.__user_id = user_id
     
     def get_habits(self) -> list[Habit]:
-        return _habits
+        return self._habits
+    
+    def add_habit(self, habit: Habit):
+        if habit not in self._habits:
+            self._habits.append(habit)
+    
+    def remove_habit(self, habit: Habit):
+        if habit in self._habits:
+            self._habits.remove(habit)
+    
+    def get_habits_str(self) -> str:
+        return "\n".join([f"{n:2}) {i}" for n, i in enumerate(self.get_habits(), start=1)])
 
-class Habit:
-    _start_date: datetime.date
-    _text: str
 
-    def __str__(self):
-        return _text
 
 @dp.message(CommandStart())
 async def cmd_start(message: Message):
@@ -65,5 +103,22 @@ async def main():
     logging.basicConfig(level=logging.INFO)
     await dp.start_polling(bot)
 
+def example():
+    h = Habit("testHabit")
+    u = UserHabits('testUser')
+    for i in range(10):
+        u.add_habit(Habit("test" + str(i)))
+    # Вывел все привычки пользователя
+    print(u.get_user() + ":\n" + u.get_habits_str())
+
+    print("==============")
+
+    # Проверка на сброс счетчика дней привычки после прекращения
+    h._start_date = datetime.date(2020, 1, 1)
+    print(str(h))
+    h.set_status(False)
+    print(str(h))
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    #asyncio.run(main())
+    example()
